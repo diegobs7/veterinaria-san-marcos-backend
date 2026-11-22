@@ -1,4 +1,6 @@
 package cl.duoc.veterinaria.security;
 
-public record UsuarioPrincipal(Long id, String email, String rol) {
+import cl.duoc.veterinaria.usuario.Aplicacion;
+
+public record UsuarioPrincipal(Long id, String email, String rol, Aplicacion aplicacion) {
 }

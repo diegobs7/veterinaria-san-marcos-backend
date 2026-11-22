@@ -31,13 +31,13 @@ public class UsuarioController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    @Operation(summary = "Listar usuarios (solo administrador)")
+    @Operation(summary = "Listar los usuarios de tu aplicación (solo administrador)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de usuarios"),
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
             @ApiResponse(responseCode = "403", description = "Rol insuficiente")})
-    public List<UsuarioResponse> listar() {
-        return servicio.listar();
+    public List<UsuarioResponse> listar(@AuthenticationPrincipal UsuarioPrincipal quien) {
+        return servicio.listar(quien);
     }
 
     @GetMapping("/{id}")

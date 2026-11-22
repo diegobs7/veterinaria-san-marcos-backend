@@ -5,6 +5,7 @@ import cl.duoc.veterinaria.common.ApiException;
 import cl.duoc.veterinaria.rol.Rol;
 import cl.duoc.veterinaria.rol.RolRepository;
 import cl.duoc.veterinaria.security.JwtService;
+import cl.duoc.veterinaria.usuario.Aplicacion;
 import cl.duoc.veterinaria.usuario.Usuario;
 import cl.duoc.veterinaria.usuario.UsuarioRepository;
 import org.springframework.http.HttpStatus;
@@ -33,21 +34,22 @@ public class AuthService {
     @Transactional
     public UsuarioResponse registrar(RegistroRequest r) {
         String email = r.email().trim().toLowerCase();
-        if (usuarios.existsByEmail(email)) {
+        Aplicacion app = r.aplicacion();
+        if (usuarios.existsByEmailAndAplicacion(email, app)) {
             throw new ApiException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
-        // El rol lo asigna el servidor: el cliente nunca puede elegirlo
-        Rol rol = roles.findByNombre("DUENO")
-                .orElseThrow(() -> new IllegalStateException("Falta el rol DUENO en la base de datos"));
-        Usuario u = usuarios.save(new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol));
+        
+        Rol rol = roles.findByNombre(app.rolInicial())
+                .orElseThrow(() -> new IllegalStateException("Falta el rol " + app.rolInicial() + " en la base de datos"));
+        Usuario u = usuarios.save(new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol, app));
         return UsuarioResponse.de(u);
     }
 
     public TokenResponse login(LoginRequest r) {
-        Usuario u = usuarios.findByEmail(r.email().trim().toLowerCase())
+        Usuario u = usuarios.findByEmailAndAplicacion(r.email().trim().toLowerCase(), r.aplicacion())
                 .filter(Usuario::isActivo)
                 .orElse(null);
-        // Se compara siempre contra un hash, exista o no la cuenta, para no revelar cuál falló
+        
         String hash = (u != null) ? u.getPasswordHash() : hashFicticio;
         boolean coincide = encoder.matches(r.password(), hash);
         if (u == null || !coincide) {

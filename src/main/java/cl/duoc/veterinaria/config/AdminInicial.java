@@ -2,6 +2,7 @@ package cl.duoc.veterinaria.config;
 
 import cl.duoc.veterinaria.rol.Rol;
 import cl.duoc.veterinaria.rol.RolRepository;
+import cl.duoc.veterinaria.usuario.Aplicacion;
 import cl.duoc.veterinaria.usuario.Usuario;
 import cl.duoc.veterinaria.usuario.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,11 +34,17 @@ public class AdminInicial implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (email.isBlank() || password.isBlank() || usuarios.existsByEmail(email.toLowerCase())) {
+        if (email.isBlank() || password.isBlank()) {
             return;
         }
         Rol admin = roles.findByNombre("ADMINISTRADOR")
                 .orElseThrow(() -> new IllegalStateException("Falta el rol ADMINISTRADOR"));
-        usuarios.save(new Usuario("Administrador", email.toLowerCase(), encoder.encode(password), admin));
+        
+        for (Aplicacion app : Aplicacion.values()) {
+            if (!usuarios.existsByEmailAndAplicacion(email.toLowerCase(), app)) {
+                usuarios.save(new Usuario("Administrador", email.toLowerCase(),
+                        encoder.encode(password), admin, app));
+            }
+        }
     }
 }
