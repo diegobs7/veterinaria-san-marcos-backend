@@ -31,20 +31,25 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
-    public List<UsuarioResponse> listar() {
-        return usuarios.findAll().stream().map(UsuarioResponse::de).toList();
+    public List<UsuarioResponse> listar(UsuarioPrincipal quien) {
+        return usuarios.findAllByAplicacion(quien.aplicacion()).stream().map(UsuarioResponse::de).toList();
     }
 
-    // El administrador crea una cuenta y elige su rol (el registro público siempre da DUENO)
+    // El administrador crea una cuenta en SU aplicación y elige un rol válido para esa aplicación
     @Transactional
-    public UsuarioResponse crear(CrearUsuarioRequest r) {
+    public UsuarioResponse crear(CrearUsuarioRequest r, UsuarioPrincipal quien) {
+        Aplicacion app = quien.aplicacion();
         String email = r.email().trim().toLowerCase();
-        if (usuarios.existsByEmail(email)) {
+        if (usuarios.existsByEmailAndAplicacion(email, app)) {
             throw new ApiException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
         Rol rol = roles.findByNombre(r.rol().trim().toUpperCase())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "El rol indicado no existe"));
-        Usuario u = new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol);
+        if (!app.permiteRol(rol.getNombre())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "El rol " + rol.getNombre() + " no corresponde a la aplicación " + app);
+        }
+        Usuario u = new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol, app);
         u.setRut(limpiar(r.rut()));
         u.setApellidos(limpiar(r.apellidos()));
         u.setTelefono(limpiar(r.telefono()));
@@ -57,15 +62,15 @@ public class UsuarioService {
     @Transactional(readOnly = true)
     public UsuarioResponse obtener(Long id, UsuarioPrincipal quien) {
         exigirPropietarioOAdmin(id, quien);
-        return UsuarioResponse.de(buscar(id));
+        return UsuarioResponse.de(buscar(id, quien));
     }
 
     @Transactional
     public UsuarioResponse actualizar(Long id, ActualizarUsuarioRequest r, UsuarioPrincipal quien) {
         exigirPropietarioOAdmin(id, quien);
-        Usuario u = buscar(id);
+        Usuario u = buscar(id, quien);
         String email = r.email().trim().toLowerCase();
-        if (!email.equals(u.getEmail()) && usuarios.existsByEmail(email)) {
+        if (!email.equals(u.getEmail()) && usuarios.existsByEmailAndAplicacion(email, u.getAplicacion())) {
             throw new ApiException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
         u.setNombre(r.nombre().trim());
@@ -84,9 +89,13 @@ public class UsuarioService {
         if (quien.id().equals(id)) {
             throw new ApiException(HttpStatus.CONFLICT, "No puedes cambiar tu propio rol");
         }
-        Usuario u = buscar(id);
+        Usuario u = buscar(id, quien);
         Rol rol = roles.findByNombre(r.rol().trim().toUpperCase())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "El rol indicado no existe"));
+        if (!u.getAplicacion().permiteRol(rol.getNombre())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "El rol " + rol.getNombre() + " no corresponde a la aplicación " + u.getAplicacion());
+        }
         u.setRol(rol);
         return UsuarioResponse.de(u);
     }
@@ -96,11 +105,12 @@ public class UsuarioService {
         if (quien.id().equals(id)) {
             throw new ApiException(HttpStatus.CONFLICT, "No puedes desactivar tu propia cuenta");
         }
-        buscar(id).setActivo(false);
+        buscar(id, quien).setActivo(false);
     }
 
-    private Usuario buscar(Long id) {
+    private Usuario buscar(Long id, UsuarioPrincipal quien) {
         return usuarios.findById(id)
+                .filter(u -> u.getAplicacion() == quien.aplicacion())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
     }
 

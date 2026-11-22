@@ -32,13 +32,13 @@ public class UsuarioController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    @Operation(summary = "Listar usuarios (solo administrador)")
+    @Operation(summary = "Listar los usuarios de tu aplicación (solo administrador)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de usuarios"),
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
             @ApiResponse(responseCode = "403", description = "Rol insuficiente")})
-    public List<UsuarioResponse> listar() {
-        return servicio.listar();
+    public List<UsuarioResponse> listar(@AuthenticationPrincipal UsuarioPrincipal quien) {
+        return servicio.listar(quien);
     }
 
     @PostMapping
@@ -51,8 +51,9 @@ public class UsuarioController {
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
             @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
             @ApiResponse(responseCode = "409", description = "El correo ya está registrado")})
-    public UsuarioResponse crear(@Valid @RequestBody CrearUsuarioRequest body) {
-        return servicio.crear(body);
+    public UsuarioResponse crear(@Valid @RequestBody CrearUsuarioRequest body,
+                                 @AuthenticationPrincipal UsuarioPrincipal quien) {
+        return servicio.crear(body, quien);
     }
 
     @GetMapping("/{id}")

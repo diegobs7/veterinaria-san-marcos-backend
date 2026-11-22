@@ -25,7 +25,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Registrar un usuario (el servidor asigna el rol DUENO)")
+    @Operation(summary = "Registrar un usuario (el servidor asigna el rol inicial de la aplicación)")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario creado"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),

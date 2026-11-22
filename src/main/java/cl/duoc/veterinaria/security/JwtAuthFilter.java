@@ -36,7 +36,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Long id = Long.valueOf(claims.getSubject());
                 usuarios.findById(id).filter(Usuario::isActivo).ifPresent(this::autenticar);
             } catch (JwtException | IllegalArgumentException e) {
-                // Token alterado, vencido o mal formado: no se autentica y el EntryPoint responde 401
+                
                 SecurityContextHolder.clearContext();
             }
         }
@@ -44,7 +44,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     private void autenticar(Usuario u) {
-        UsuarioPrincipal principal = new UsuarioPrincipal(u.getId(), u.getEmail(), u.getRol().getNombre());
+        UsuarioPrincipal principal = new UsuarioPrincipal(u.getId(), u.getEmail(), u.getRol().getNombre(), u.getAplicacion());
         var auth = new UsernamePasswordAuthenticationToken(principal, null,
                 List.of(new SimpleGrantedAuthority("ROLE_" + principal.rol())));
         SecurityContextHolder.getContext().setAuthentication(auth);
