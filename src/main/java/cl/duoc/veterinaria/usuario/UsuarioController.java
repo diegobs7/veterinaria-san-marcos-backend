@@ -4,6 +4,7 @@ import cl.duoc.veterinaria.auth.AuthDtos.UsuarioResponse;
 import cl.duoc.veterinaria.security.UsuarioPrincipal;
 import cl.duoc.veterinaria.usuario.UsuarioDtos.ActualizarUsuarioRequest;
 import cl.duoc.veterinaria.usuario.UsuarioDtos.CambiarRolRequest;
+import cl.duoc.veterinaria.usuario.UsuarioDtos.CrearUsuarioRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -38,6 +39,20 @@ public class UsuarioController {
             @ApiResponse(responseCode = "403", description = "Rol insuficiente")})
     public List<UsuarioResponse> listar() {
         return servicio.listar();
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Crear un usuario con su rol (solo administrador)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Usuario creado"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos o el rol no existe"),
+            @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
+            @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
+            @ApiResponse(responseCode = "409", description = "El correo ya está registrado")})
+    public UsuarioResponse crear(@Valid @RequestBody CrearUsuarioRequest body) {
+        return servicio.crear(body);
     }
 
     @GetMapping("/{id}")
