@@ -38,6 +38,7 @@ public class JwtService {
                 .issuer(issuer)
                 .audience().add(audience).and()
                 .claim("rol", u.getRol().getNombre())
+                .claim("app", u.getAplicacion().name())
                 .issuedAt(Date.from(ahora))
                 .expiration(Date.from(ahora.plus(minutos, ChronoUnit.MINUTES)))
                 .signWith(key, Jwts.SIG.HS256)
@@ -48,7 +49,6 @@ public class JwtService {
         return minutos * 60;
     }
 
-    /** Verifica firma, vigencia, emisor y destinatario. Lanza JwtException si algo falla. */
     public Claims validar(String token) {
         return Jwts.parser()
                 .verifyWith(key)

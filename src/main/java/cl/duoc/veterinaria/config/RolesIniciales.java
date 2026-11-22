@@ -21,7 +21,7 @@ public class RolesIniciales implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        for (String nombre : List.of("ADMINISTRADOR", "RECEPCIONISTA", "DUENO")) {
+        for (String nombre : List.of("ADMINISTRADOR", "RECEPCIONISTA", "DUENO", "VENDEDOR", "ENCARGADO_INVENTARIO")) {
             if (!roles.existsByNombre(nombre)) {
                 roles.save(new Rol(nombre));
             }
