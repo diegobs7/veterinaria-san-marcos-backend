@@ -3,6 +3,7 @@ package cl.duoc.veterinaria.usuario;
 import cl.duoc.veterinaria.rol.Rol;
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,6 +33,25 @@ public class Usuario {
     @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime creadoEn;
 
+    // Datos opcionales del perfil: los usa la veterinaria; Kaiju los deja vacíos
+    @Column(length = 12)
+    private String rut;
+
+    @Column(length = 100)
+    private String apellidos;
+
+    @Column(length = 15)
+    private String telefono;
+
+    @Column(name = "fecha_nacimiento")
+    private LocalDate fechaNacimiento;
+
+    @Column(length = 60)
+    private String region;
+
+    @Column(length = 300)
+    private String direccion;
+
     @PrePersist
     void alCrear() {
         this.creadoEn = LocalDateTime.now();
@@ -59,4 +79,17 @@ public class Usuario {
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
     public LocalDateTime getCreadoEn() { return creadoEn; }
+
+    public String getRut() { return rut; }
+    public void setRut(String rut) { this.rut = rut; }
+    public String getApellidos() { return apellidos; }
+    public void setApellidos(String apellidos) { this.apellidos = apellidos; }
+    public String getTelefono() { return telefono; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
+    public LocalDate getFechaNacimiento() { return fechaNacimiento; }
+    public void setFechaNacimiento(LocalDate fechaNacimiento) { this.fechaNacimiento = fechaNacimiento; }
+    public String getRegion() { return region; }
+    public void setRegion(String region) { this.region = region; }
+    public String getDireccion() { return direccion; }
+    public void setDireccion(String direccion) { this.direccion = direccion; }
 }
