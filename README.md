@@ -1,131 +1,132 @@
-# Equipo TDA · Veterinaria San Marcos (React)
+# Veterinaria San Marcos · Backend
 
-## Integrantes
+Proyecto semestral DSY1104 · Caso: Veterinaria San Marcos
+Integrantes: Diego Bergeret, Andrés Marín, Thomas Araya
+Frontend: https://github.com/diegobs7/veterinaria-san-marcos-react
+App Android que comparte este backend: https://github.com/diegobs7/PocketTrackKaiju
 
-- Andres Marin · andr.marin@duocuc.cl
-- Thomas Araya · thom.araya@duocuc.cl
-- Diego Bergeret · di.bergeret@duocuc.cl
+## Decisiones técnicas
+Spring Boot (Java 21) · MySQL 8.4 en Docker · Spring Security + JWT (HS256) · Swagger (springdoc) · ejecución en EC2
 
-## Caso
+- Contraseñas guardadas con hash BCrypt, nunca en texto plano. Mínimo 8 caracteres, igual que en la página.
+- El rol se asigna en el servidor al registrar (rol inicial de la aplicación); el cliente no puede elegirlo.
+- Login con error genérico ("Credenciales incorrectas") para no revelar si el correo existe.
+- Desactivar es un borrado lógico (`activo=false`) y se puede revertir con Reactivar; el filtro JWT consulta la base en cada solicitud, por lo que el token de un usuario desactivado deja de funcionar.
+- Eliminar borra la cuenta de forma permanente. En la página solo se ofrece para cuentas ya desactivadas (dos pasos para no borrar por error).
+- Un usuario solo puede ver o modificar su propia cuenta; el administrador puede gestionar todas las de su aplicación.
+- CORS: solo los orígenes indicados en `CORS_ORIGENES` pueden llamar a la API desde el navegador.
 
-Veterinaria San Marcos (Forma A) · curso DSY1104 Desarrollo Fullstack II · Parcial 2
+## Un backend para dos aplicaciones
+El mismo backend guarda los usuarios de la página de la veterinaria y de la app PocketTrack Kaiju. Cada usuario pertenece a una `aplicacion`, que se envía en el login y en el registro.
 
-## Descripción del caso
+| Aplicación | Rol inicial al registrarse | Roles permitidos |
+|---|---|---|
+| `VETERINARIA` | `DUENO` | `ADMINISTRADOR`, `RECEPCIONISTA`, `DUENO` |
+| `KAIJU` | `VENDEDOR` | `ADMINISTRADOR`, `VENDEDOR`, `ENCARGADO_INVENTARIO` |
 
-Veterinaria San Marcos es una clínica de Rancagua que atiende perros, gatos, conejos y aves, y hoy gestiona sus citas en una agenda de papel.
-La aplicación muestra los servicios de la clínica (consultas, vacunación, cirugía, desparasitación, exámenes y otros) y permite a los dueños registrarse, inscribir a sus mascotas y solicitar citas en línea.
-El administrador gestiona servicios, categorías, usuarios y solicitudes desde un panel propio.
-Las cuentas de usuario (registro, inicio de sesión y CRUD de usuarios del administrador) se guardan en el backend con Spring Boot y MySQL: https://github.com/diegobs7/veterinaria-san-marcos-backend
-El resto de los datos (servicios, categorías, mascotas, citas, evaluaciones y mensajes) todavía se guarda en el navegador (localStorage); se pasarán al backend más adelante.
-El mismo backend lo usa la app Android PocketTrack Kaiju; cada app solo ve sus propios usuarios.
+- El correo y el RUT son únicos **por aplicación**: la misma persona puede tener una cuenta en cada app.
+- Un administrador solo ve y gestiona los usuarios de su propia aplicación.
+- Al arrancar se crea un administrador en cada aplicación con `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
 
-## Estructura del proyecto
+## Estado del avance (bloque usuarios)
+| Operación | Estado | Diseñado | Implementado | Probado |
+|---|---|---|---|---|
+| Tabla de usuarios (MySQL, hash BCrypt, persistente) | Listo | Sí | Sí | Sí |
+| Inicio de sesión (JWT) | Listo | Sí | Sí | Sí |
+| Registro (con RUT, teléfono y dirección) | Listo | Sí | Sí | Sí |
+| Crear usuario con rol (administrador) | Listo | Sí | Sí | Sí |
+| Modificar usuario | Listo | Sí | Sí | Sí |
+| Listar usuarios | Listo | Sí | Sí | Sí |
+| Cambiar rol | Listo | Sí | Sí | Sí |
+| Desactivar usuario | Listo | Sí | Sí | Sí |
+| Reactivar usuario | Listo | Sí | Sí | Sí |
+| Eliminar usuario (permanente) | Listo | Sí | Sí | Sí |
+| Usuarios separados por aplicación (VETERINARIA / KAIJU) | Listo | Sí | Sí | Sí |
+| CORS para el frontend React | Listo | Sí | Sí | Sí |
+| Pruebas unitarias automáticas | Pendiente | No | No | No |
 
-Los componentes están ordenados por Atomic Design; la lógica de datos vive fuera de `components`.
+## Rutas
 
-```
-src/
-├── components/
-│   ├── atoms/          piezas mínimas (botón, campo, etiqueta, ícono...)
-│   ├── molecules/      pocos átomos juntos (tarjeta de servicio, buscador...)
-│   ├── organisms/      bloques de pantalla (barra de navegación, formularios, listas...)
-│   └── templates/      esqueletos de página, sin datos
-├── pages/              una por ruta
-│   └── Admin/          páginas del panel de administración
-├── services/           llamadas a la API (api.js, authService, usuarioService) y CRUD en localStorage (servicios, categorías, mascotas, citas)
-├── dto/                cuerpos que se envían a la API (login y registro)
-├── context/            estado compartido de los servicios (ServiciosContext)
-├── data/               datos de partida (JSON) y opciones de formularios
-├── utils/              funciones puras (precios, textos, códigos, reglas de solicitud)
-│   └── validaciones/   validadores que devuelven el mensaje de error
-├── Hooks/              hooks propios (por ejemplo, el título de cada página)
-└── setupTests.js       configuración de las pruebas
-```
+| Método | Ruta | Acceso |
+|---|---|---|
+| POST | `/api/v1/auth/register` | Público |
+| POST | `/api/v1/auth/login` | Público |
+| GET | `/api/v1/auth/me` | Autenticado |
+| GET | `/api/v1/usuarios` | Solo ADMINISTRADOR (usuarios de su aplicación) |
+| POST | `/api/v1/usuarios` | Solo ADMINISTRADOR (crea con rol) |
+| GET | `/api/v1/usuarios/{id}` | Propietario o ADMINISTRADOR |
+| PUT | `/api/v1/usuarios/{id}` | Propietario o ADMINISTRADOR |
+| PATCH | `/api/v1/usuarios/{id}/rol` | Solo ADMINISTRADOR |
+| DELETE | `/api/v1/usuarios/{id}` | Solo ADMINISTRADOR (desactiva) |
+| PATCH | `/api/v1/usuarios/{id}/activar` | Solo ADMINISTRADOR (reactiva) |
+| DELETE | `/api/v1/usuarios/{id}/eliminar` | Solo ADMINISTRADOR (elimina) |
 
-## Tecnologías utilizadas
+Documentación interactiva (Swagger UI): `http://<IP-EC2>:8080/swagger-ui.html`. Usar **Authorize** y pegar solo el token (`accessToken` de la respuesta del login).
 
-- React 19 y Vite
-- React Router (rutas) y Bootstrap con React Bootstrap (diseño responsivo)
-- Axios para llamar a la API del backend (token JWT en cada solicitud)
-- localStorage para los datos que aún no pasan al backend; sessionStorage para la sesión
-- Vitest, Testing Library y jsdom (pruebas unitarias y cobertura)
-- oxlint (revisión de código)
+## Variables del `.env`
+El archivo `.env` no se sube a GitHub. Se crea a partir de `.env.example`.
 
-## Cómo ejecutar el proyecto
+| Variable | Para qué sirve |
+|---|---|
+| `DB_HOST`, `DB_PORT` | Dónde está MySQL (por defecto `localhost` y `3306`) |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD` | Base de datos MySQL del contenedor `vet-mysql` |
+| `JWT_SECRET` | Clave para firmar los tokens. Generarla con `openssl rand -base64 48` |
+| `JWT_EXPIRATION_MINUTES` | Duración del token (por defecto 60) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Administrador que se crea al arrancar en cada aplicación |
+| `CORS_ORIGENES` | Dirección de la página de React, por ejemplo `http://<IP-EC2>:5173`. Varias se separan con coma |
 
-Requisitos: Node.js (versión LTS) y el backend corriendo (ver su README).
+## Cómo ejecutar
+1. `cp .env.example .env` y completar los valores
+2. `docker compose up -d`
+3. `./mvnw spring-boot:run` (desde la carpeta del proyecto, porque ahí se lee el `.env`)
 
-1. Crear el archivo `.env` a partir de `.env.example` con la dirección de la API. No se sube a GitHub.
-   ```
-   VITE_API_URL=http://localhost:8080/api/v1
-   ```
-   La dirección debe ser accesible desde el **navegador** de quien usa la página: en la EC2 va la IP pública del backend.
-2. Instalar y ejecutar:
-   ```
-   npm install
-   npm run dev
-   ```
+Notas:
+- `DB_PASSWORD` y `DB_ROOT_PASSWORD` solo se aplican la primera vez que se crea el contenedor. Para cambiarlas en una base de prueba: `docker compose down -v` (borra los datos).
+- `ADMIN_PASSWORD` solo se usa cuando se crea el administrador; cambiarla después no modifica al administrador ya creado.
+- Si la base viene de una versión anterior (correo único sin aplicación), hay que borrar una vez el índice único antiguo de `email`, porque `ddl-auto=update` no lo elimina:
+  ```bash
+  docker exec -it vet-mysql mysql -u root -p veterinaria -e "SHOW INDEX FROM usuarios WHERE Column_name='email';"
+  docker exec -it vet-mysql mysql -u root -p veterinaria -e "ALTER TABLE usuarios DROP INDEX NOMBRE_DEL_INDICE_ANTIGUO;"
+  ```
+  Se conserva `uk_usuarios_email_aplicacion`.
 
-Vite solo lee el `.env` al arrancar: si se cambia, hay que detener y volver a ejecutar `npm run dev`.
-El backend debe permitir el origen de la página en `CORS_ORIGENES` (por defecto `http://localhost:5173`).
+## Pruebas realizadas (16-nov-2026)
 
-La aplicación queda en la dirección que muestra la terminal (normalmente http://localhost:5173).
+| # | Prueba | Esperado | Obtenido |
+|---|--------|----------|----------|
+| 1 | Admin lista usuarios | 200 | 200 |
+| 2 | Dueño lista usuarios | 403 | 403 |
+| 3 | Listar sin token | 401 | 401 |
+| 4 | Dueño ve su propia cuenta | 200 | 200 |
+| 5 | Dueño ve la cuenta del admin | 403 | 403 |
+| 6 | Dueño modifica su nombre | 200 | 200 |
+| 7 | Dueño modifica a otro usuario | 403 | 403 |
+| 8 | Dueño se asigna rol administrador | 403 | 403 |
+| 9 | Admin cambia rol de otro usuario | 200 | 200 |
+| 10 | Admin asigna rol inexistente | 400 | 400 |
+| 11 | Admin se desactiva a sí mismo | 409 | 409 |
+| 12 | Admin desactiva a otro usuario | 204 | 204 |
+| 13 | Token de usuario desactivado | 401 | 401 |
+| 14 | Login de usuario desactivado | 401 | 401 |
+| 15 | Login tras reiniciar el backend (persistencia) | 200 | 200 |
 
-Para generar la versión de producción: `npm run build`.
+## Pruebas por aplicación (22-nov-2026)
+Con una base nueva, en Swagger y desde la página de React, como administrador de cada aplicación.
 
-## Cómo probar el proyecto
-
-| Comando | Qué hace |
-| --- | --- |
-| `npm test` | Ejecuta las pruebas y queda vigilando los cambios |
-| `npm run test:run` | Ejecuta todas las pruebas una vez |
-| `npm run test:cov` | Ejecuta las pruebas y muestra el reporte de cobertura |
-
-Hoy hay 84 pruebas en 21 archivos: 83 pasan y 1 falla a propósito (`src/utils/categorias.demo.test.js`). Cada archivo `.test.js` o `.test.jsx` está junto al código que prueba.
-
-El documento de cobertura está en [`docs/COBERTURA.md`](docs/COBERTURA.md).
-
-## Rutas y roles
-
-| Quién | Rutas principales |
-| --- | --- |
-| Visitante | `/`, `/servicios`, `/servicios/:id`, `/categorias`, `/categorias/:slug`, `/ofertas`, `/nosotros`, `/blogs`, `/blogs/:id`, `/contacto`, `/evaluacion`, `/registro`, `/login` |
-| Cliente (con sesión) | `/citas` (Mis citas) y `/perfil`; la solicitud de cita se hace desde el detalle de un servicio |
-| Administrador | `/admin`, `/admin/servicios`, `/admin/categorias`, `/admin/usuarios`, `/admin/solicitudes`, `/admin/reportes` |
-
-**Cómo entrar.**
-
-- Cliente: crear una cuenta en `/registro` (el correo debe ser @duocuc.cl, @profesor.duoc.cl o @gmail.com; contraseña de al menos 8 caracteres). El backend le asigna el rol Cliente (`DUENO`).
-- Administrador: el backend lo crea al arrancar con `ADMIN_EMAIL` y `ADMIN_PASSWORD` de su `.env`.
-
-## Gestión de usuarios (administrador)
-
-Desde `/admin/usuarios` el administrador gestiona las cuentas de la veterinaria a través del backend:
-
-| Acción | Llamada a la API |
-| --- | --- |
-| Listar | `GET /usuarios` |
-| Ver / editar | `GET /usuarios/{id}` y `PUT /usuarios/{id}` |
-| Crear con rol | `POST /usuarios` |
-| Cambiar rol | `PATCH /usuarios/{id}/rol` |
-| Desactivar | `DELETE /usuarios/{id}` (la cuenta queda inactiva y no puede iniciar sesión) |
-| Reactivar | `PATCH /usuarios/{id}/activar` |
-| Eliminar | `DELETE /usuarios/{id}/eliminar` (solo para cuentas ya desactivadas) |
-
-Roles en la página: Administrador (`ADMINISTRADOR`), Recepcionista (`RECEPCIONISTA`) y Cliente (`DUENO`).
-Los nombres de la página se traducen a los del backend en `src/utils/usuarioMapper.js` y `src/utils/roles.js` (por ejemplo, `correo` ↔ `email` y `tipo` ↔ `rol`).
-Los errores del backend (correo o RUT repetido, rol no permitido) se muestran bajo el campo que corresponde.
-
-## Datos
-
-Las cuentas de usuario están en la base de datos del backend. Los demás datos de partida están en `src/data` y los cambios quedan en localStorage (claves `servicios`, `categorias`, `mascotas`, `solicitudes`, `evaluaciones` y `mensajesContacto`); la sesión (token JWT y datos del usuario) queda en sessionStorage.
-Para volver a los datos iniciales, borrar el almacenamiento del sitio desde las herramientas del navegador (Application → Clear site data).
-
-## Trabajo en equipo
-
-Se trabaja con una rama por integrante (`RamaAndres`, `RamaThom`, `RamaDiego`) que se une a `main` con Pull Request.
-
-## Material complementario
-
-Carpeta de Drive con los documentos del semestre (ERS V2, documento de cobertura y otros):
-https://drive.google.com/drive/folders/134xFPeqdPwCJd2sjJ30z7a-os8IIasWA?usp=sharing
+| # | Prueba | Esperado | Obtenido |
+|---|--------|----------|----------|
+| 16 | Al arrancar se crea un admin en VETERINARIA y otro en KAIJU con el mismo correo | 2 filas | 2 filas |
+| 17 | Admin VETERINARIA crea un RECEPCIONISTA | 201 | 201 |
+| 18 | Admin VETERINARIA crea un VENDEDOR (rol de otra app) | 400 | 400 |
+| 19 | Admin VETERINARIA repite un correo | 409 | 409 |
+| 20 | Admin VETERINARIA lista: solo usuarios de VETERINARIA | 200 | 200 |
+| 21 | Admin KAIJU crea un VENDEDOR con el mismo correo de la prueba 17 | 201 | 201 |
+| 22 | Admin KAIJU crea un DUENO (rol de otra app) | 400 | 400 |
+| 23 | Admin KAIJU lista: solo usuarios de KAIJU | 200 | 200 |
+| 24 | Admin KAIJU ve un usuario de VETERINARIA | 404 | 404 |
+| 25 | Preflight CORS desde `http://localhost:5173` | 200 con `Access-Control-Allow-Origin` | 200 |
+| 26 | Login desde la página de React | Entra al panel | Entra al panel |
+| 27 | Admin se cambia su propio rol (desde la página) | 409 | 409 |
+| 28 | Admin desactiva un usuario y ese usuario intenta iniciar sesión | 401 | 401 |
+| 29 | Admin reactiva y luego elimina un usuario desactivado | 200 y 204 | 200 y 204 |
+| 30 | Registro con un RUT ya usado en VETERINARIA | 409 "El RUT ya está registrado" | 409 |
