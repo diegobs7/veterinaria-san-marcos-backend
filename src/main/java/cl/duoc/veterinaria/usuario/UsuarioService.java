@@ -137,4 +137,19 @@ public class UsuarioService {
                     "No tienes permiso para acceder a la cuenta de otra persona");
         }
     }
+
+       @Transactional
+    public UsuarioResponse reactivar(Long id, UsuarioPrincipal quien) {
+        Usuario u = buscar(id, quien);
+        u.setActivo(true);
+        return UsuarioResponse.de(u);
+    }
+
+     @Transactional
+    public void eliminar(Long id, UsuarioPrincipal quien) {
+        if (quien.id().equals(id)) {
+            throw new ApiException(HttpStatus.CONFLICT, "No puedes eliminar tu propia cuenta");
+        }
+        usuarios.delete(buscar(id, quien));
+    }
 }
