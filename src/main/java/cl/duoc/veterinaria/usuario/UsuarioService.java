@@ -43,6 +43,10 @@ public class UsuarioService {
         if (usuarios.existsByEmailAndAplicacion(email, app)) {
             throw new ApiException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
+        String rut = limpiar(r.rut());
+        if (rut != null && usuarios.existsByRutAndAplicacion(rut, app)) {
+            throw new ApiException(HttpStatus.CONFLICT, "El RUT ya está registrado");
+        }
         Rol rol = roles.findByNombre(r.rol().trim().toUpperCase())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "El rol indicado no existe"));
         if (!app.permiteRol(rol.getNombre())) {
@@ -50,7 +54,7 @@ public class UsuarioService {
                     "El rol " + rol.getNombre() + " no corresponde a la aplicación " + app);
         }
         Usuario u = new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol, app);
-        u.setRut(limpiar(r.rut()));
+        u.setRut(rut);
         u.setApellidos(limpiar(r.apellidos()));
         u.setTelefono(limpiar(r.telefono()));
         u.setFechaNacimiento(r.fechaNacimiento());
@@ -73,9 +77,13 @@ public class UsuarioService {
         if (!email.equals(u.getEmail()) && usuarios.existsByEmailAndAplicacion(email, u.getAplicacion())) {
             throw new ApiException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
+        String rut = limpiar(r.rut());
+        if (rut != null && !rut.equals(u.getRut()) && usuarios.existsByRutAndAplicacion(rut, u.getAplicacion())) {
+            throw new ApiException(HttpStatus.CONFLICT, "El RUT ya está registrado");
+        }
         u.setNombre(r.nombre().trim());
         u.setEmail(email);
-        u.setRut(limpiar(r.rut()));
+        u.setRut(rut);
         u.setApellidos(limpiar(r.apellidos()));
         u.setTelefono(limpiar(r.telefono()));
         u.setFechaNacimiento(r.fechaNacimiento());
@@ -128,5 +136,20 @@ public class UsuarioService {
             throw new ApiException(HttpStatus.FORBIDDEN,
                     "No tienes permiso para acceder a la cuenta de otra persona");
         }
+    }
+
+       @Transactional
+    public UsuarioResponse reactivar(Long id, UsuarioPrincipal quien) {
+        Usuario u = buscar(id, quien);
+        u.setActivo(true);
+        return UsuarioResponse.de(u);
+    }
+
+     @Transactional
+    public void eliminar(Long id, UsuarioPrincipal quien) {
+        if (quien.id().equals(id)) {
+            throw new ApiException(HttpStatus.CONFLICT, "No puedes eliminar tu propia cuenta");
+        }
+        usuarios.delete(buscar(id, quien));
     }
 }

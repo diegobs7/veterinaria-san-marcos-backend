@@ -50,10 +50,34 @@ public class UsuarioController {
             @ApiResponse(responseCode = "400", description = "Datos inválidos o el rol no existe"),
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
             @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
-            @ApiResponse(responseCode = "409", description = "El correo ya está registrado")})
+            @ApiResponse(responseCode = "409", description = "El correo o el RUT ya están registrados")})
     public UsuarioResponse crear(@Valid @RequestBody CrearUsuarioRequest body,
                                  @AuthenticationPrincipal UsuarioPrincipal quien) {
         return servicio.crear(body, quien);
+    }
+
+    @PatchMapping("/{id}/activar")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Reactivar un usuario desactivado (solo administrador)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario reactivado"),
+            @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario inexistente")})
+    public UsuarioResponse reactivar(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal quien) {
+        return servicio.reactivar(id, quien);
+    }
+
+    @DeleteMapping("/{id}/eliminar")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Eliminar un usuario de forma permanente (solo administrador)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Usuario eliminado"),
+            @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario inexistente"),
+            @ApiResponse(responseCode = "409", description = "No puedes eliminar tu propia cuenta")})
+    public void eliminar(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal quien) {
+        servicio.eliminar(id, quien);
     }
 
     @GetMapping("/{id}")
@@ -67,13 +91,13 @@ public class UsuarioController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Modificar nombre y correo (el propio o cualquiera si eres administrador)")
+    @Operation(summary = "Modificar los datos del perfil (el propio o cualquiera si eres administrador)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario modificado"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),
             @ApiResponse(responseCode = "403", description = "Cuenta de otra persona"),
             @ApiResponse(responseCode = "404", description = "Usuario inexistente"),
-            @ApiResponse(responseCode = "409", description = "El correo ya está registrado")})
+            @ApiResponse(responseCode = "409", description = "El correo o el RUT ya están registrados")})
     public UsuarioResponse actualizar(@PathVariable Long id,
                                       @Valid @RequestBody ActualizarUsuarioRequest body,
                                       @AuthenticationPrincipal UsuarioPrincipal quien) {

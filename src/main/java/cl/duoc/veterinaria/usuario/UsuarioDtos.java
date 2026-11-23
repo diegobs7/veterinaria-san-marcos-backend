@@ -33,7 +33,7 @@ public final class UsuarioDtos {
     public record CrearUsuarioRequest(
             @NotBlank @Size(min = 3, max = 100) String nombre,
             @NotBlank @Email @Size(max = 120) String email,
-            @NotBlank @Size(min = 6, max = 72) String password,
+            @NotBlank @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres") String password,
             @NotBlank String rol,
             @Pattern(regexp = RUT, message = "El RUT debe tener el formato 12.345.678-5") String rut,
             @Size(min = 2, max = 100) String apellidos,

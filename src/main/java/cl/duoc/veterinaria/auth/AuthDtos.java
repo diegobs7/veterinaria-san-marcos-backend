@@ -17,7 +17,7 @@ public final class AuthDtos {
     public record RegistroRequest(
             @NotBlank @Size(max = 100) String nombre,
             @NotBlank @Email @Size(max = 120) String email,
-            @NotBlank @Size(min = 6, max = 72) String password,
+            @NotBlank @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres") String password,
             @NotNull Aplicacion aplicacion,
             @Size(max = 12) String rut,
             @Size(max = 15) String telefono,
