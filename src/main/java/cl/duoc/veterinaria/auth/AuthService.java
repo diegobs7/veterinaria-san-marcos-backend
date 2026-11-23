@@ -38,11 +38,19 @@ public class AuthService {
         if (usuarios.existsByEmailAndAplicacion(email, app)) {
             throw new ApiException(HttpStatus.CONFLICT, "El correo ya está registrado");
         }
-        
+        // El RUT, igual que el correo, no se puede repetir dentro de la misma aplicación
+        String rut = limpiar(r.rut());
+        if (rut != null && usuarios.existsByRutAndAplicacion(rut, app)) {
+            throw new ApiException(HttpStatus.CONFLICT, "El RUT ya está registrado");
+        }
+
         Rol rol = roles.findByNombre(app.rolInicial())
                 .orElseThrow(() -> new IllegalStateException("Falta el rol " + app.rolInicial() + " en la base de datos"));
-        Usuario u = usuarios.save(new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol, app));
-        return UsuarioResponse.de(u);
+        Usuario u = new Usuario(r.nombre().trim(), email, encoder.encode(r.password()), rol, app);
+        u.setRut(rut);
+        u.setTelefono(limpiar(r.telefono()));
+        u.setDireccion(limpiar(r.direccion()));
+        return UsuarioResponse.de(usuarios.save(u));
     }
 
     public TokenResponse login(LoginRequest r) {
@@ -63,5 +71,13 @@ public class AuthService {
         return usuarios.findById(id)
                 .map(UsuarioResponse::de)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+    }
+    
+    // Quita espacios y guarda null en vez de texto vacío
+    private String limpiar(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+        return valor.trim();
     }
 }
