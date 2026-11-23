@@ -56,6 +56,30 @@ public class UsuarioController {
         return servicio.crear(body, quien);
     }
 
+    @PatchMapping("/{id}/activar")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Reactivar un usuario desactivado (solo administrador)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario reactivado"),
+            @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario inexistente")})
+    public UsuarioResponse reactivar(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal quien) {
+        return servicio.reactivar(id, quien);
+    }
+
+    @DeleteMapping("/{id}/eliminar")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Eliminar un usuario de forma permanente (solo administrador)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Usuario eliminado"),
+            @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario inexistente"),
+            @ApiResponse(responseCode = "409", description = "No puedes eliminar tu propia cuenta")})
+    public void eliminar(@PathVariable Long id, @AuthenticationPrincipal UsuarioPrincipal quien) {
+        servicio.eliminar(id, quien);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Ver un usuario (el propio o cualquiera si eres administrador)")
     @ApiResponses({
