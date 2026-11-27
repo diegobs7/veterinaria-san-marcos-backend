@@ -4,6 +4,8 @@ import cl.duoc.veterinaria.categoria.CategoriaDtos.CategoriaRequest;
 import cl.duoc.veterinaria.categoria.CategoriaDtos.CategoriaResponse;
 import cl.duoc.veterinaria.common.ApiException;
 import cl.duoc.veterinaria.common.Slugs;
+import cl.duoc.veterinaria.servicio.ServicioRepository;
+
 import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -15,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class CategoriaService {
 
     private final CategoriaRepository categorias;
+    private final ServicioRepository servicios;
 
-    public CategoriaService(CategoriaRepository categorias) {
+    public CategoriaService(CategoriaRepository categorias, ServicioRepository servicios) {
         this.categorias = categorias;
+        this.servicios = servicios;
     }
 
     // Ordenadas por id para respetar el orden en que se cargaron (Consultas, Vacunación...)
