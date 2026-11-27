@@ -12,6 +12,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import static cl.duoc.veterinaria.security.Permisos.ADMIN_VETERINARIA;
 
 @RestController
 @RequestMapping("/api/v1/categorias")
@@ -20,8 +21,6 @@ public class CategoriaController {
 
     // Solo el administrador de la VETERINARIA: el backend es compartido con Kaiju,
     // y un administrador de Kaiju no debe modificar el catálogo de la veterinaria
-    private static final String ADMIN_VETERINARIA =
-            "hasRole('ADMINISTRADOR') and principal.aplicacion().name() == 'VETERINARIA'";
 
     private final CategoriaService servicio;
 
@@ -93,7 +92,9 @@ public class CategoriaController {
             @ApiResponse(responseCode = "204", description = "Categoría eliminada"),
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
             @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
-            @ApiResponse(responseCode = "404", description = "Categoría inexistente")})
+            @ApiResponse(responseCode = "404", description = "Categoría inexistente"),
+            @ApiResponse(responseCode = "409", description = "La categoría todavía tiene servicios")}
+        )
     public void eliminar(@PathVariable Long id) {
         servicio.eliminar(id);
     }
