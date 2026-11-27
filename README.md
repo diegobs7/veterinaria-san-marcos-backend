@@ -15,6 +15,8 @@ Spring Boot (Java 21) · MySQL 8.4 en Docker · Spring Security + JWT (HS256) ·
 - Eliminar borra la cuenta de forma permanente. En la página solo se ofrece para cuentas ya desactivadas (dos pasos para no borrar por error).
 - Un usuario solo puede ver o modificar su propia cuenta; el administrador puede gestionar todas las de su aplicación.
 - CORS: solo los orígenes indicados en `CORS_ORIGENES` pueden llamar a la API desde el navegador.
+- Catálogo: consultar categorías y servicios es público (`GET`); crear, modificar y eliminar es solo para el administrador de la **veterinaria** (`Permisos.ADMIN_VETERINARIA`). Un administrador de Kaiju recibe 403.
+- Las reglas de negocio se validan en el servidor y responden 409 con un mensaje claro, antes de que la base de datos rechace la operación.
 
 ## Un backend para dos aplicaciones
 El mismo backend guarda los usuarios de la página de la veterinaria y de la app PocketTrack Kaiju. Cada usuario pertenece a una `aplicacion`, que se envía en el login y en el registro.
@@ -28,7 +30,7 @@ El mismo backend guarda los usuarios de la página de la veterinaria y de la app
 - Un administrador solo ve y gestiona los usuarios de su propia aplicación.
 - Al arrancar se crea un administrador en cada aplicación con `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
 
-## Estado del avance (bloque usuarios)
+## Estado del avance
 | Operación | Estado | Diseñado | Implementado | Probado |
 |---|---|---|---|---|
 | Tabla de usuarios (MySQL, hash BCrypt, persistente) | Listo | Sí | Sí | Sí |
@@ -43,6 +45,10 @@ El mismo backend guarda los usuarios de la página de la veterinaria y de la app
 | Eliminar usuario (permanente) | Listo | Sí | Sí | Sí |
 | Usuarios separados por aplicación (VETERINARIA / KAIJU) | Listo | Sí | Sí | Sí |
 | CORS para el frontend React | Listo | Sí | Sí | Sí |
+| CRUD de categorías (con Swagger) | Listo | Sí | Sí | Sí |
+| CRUD de servicios (con Swagger y filtro por categoría) | Listo | Sí | Sí | Sí |
+| Carga inicial del catálogo (6 categorías, 31 servicios y ofertas) | Listo | Sí | Sí | Sí |
+| Catálogo conectado al frontend React | Listo | Sí | Sí | Sí |
 | Pruebas unitarias automáticas | Pendiente | No | No | No |
 
 ## Rutas
@@ -60,8 +66,38 @@ El mismo backend guarda los usuarios de la página de la veterinaria y de la app
 | DELETE | `/api/v1/usuarios/{id}` | Solo ADMINISTRADOR (desactiva) |
 | PATCH | `/api/v1/usuarios/{id}/activar` | Solo ADMINISTRADOR (reactiva) |
 | DELETE | `/api/v1/usuarios/{id}/eliminar` | Solo ADMINISTRADOR (elimina) |
+| GET | `/api/v1/categorias` | Público |
+| GET | `/api/v1/categorias/{id}` | Público |
+| GET | `/api/v1/categorias/slug/{slug}` | Público |
+| POST | `/api/v1/categorias` | Solo ADMINISTRADOR de VETERINARIA |
+| PUT | `/api/v1/categorias/{id}` | Solo ADMINISTRADOR de VETERINARIA |
+| DELETE | `/api/v1/categorias/{id}` | Solo ADMINISTRADOR de VETERINARIA |
+| GET | `/api/v1/servicios` (opcional `?categoria=slug`) | Público |
+| GET | `/api/v1/servicios/{id}` | Público |
+| POST | `/api/v1/servicios` | Solo ADMINISTRADOR de VETERINARIA |
+| PUT | `/api/v1/servicios/{id}` | Solo ADMINISTRADOR de VETERINARIA |
+| DELETE | `/api/v1/servicios/{id}` | Solo ADMINISTRADOR de VETERINARIA |
 
-Documentación interactiva (Swagger UI): `http://<IP-EC2>:8080/swagger-ui.html`. Usar **Authorize** y pegar solo el token (`accessToken` de la respuesta del login).
+Documentación interactiva (Swagger UI): `http://<IP-EC2>:8080/swagger-ui.html`. Usar **Authorize** y pegar solo el token (`accessToken` de la respuesta del login). Las rutas con candado son las que piden token; cada una documenta sus respuestas (200/201/204, 400, 401, 403, 404 y 409).
+
+## Catálogo: categorías y servicios
+Código en los paquetes `categoria` y `servicio`. Cada servicio pertenece a una categoría (`categoria_id`).
+
+| Dato | Regla |
+|---|---|
+| Nombre de categoría | Único. Se compara por su **slug** (`Cirugía` y `cirugia` son el mismo): 409 "Ya existe una categoría con ese nombre" |
+| Slug de categoría | Lo genera el servidor a partir del nombre (`Slugs.de`): sin tildes, en minúsculas y con guiones |
+| Eliminar categoría | No se permite si tiene servicios: 409 "No se puede eliminar una categoría que tiene servicios" |
+| Nombre de servicio | Único dentro de su categoría (sin distinguir mayúsculas): 409 "Ya existe un servicio con ese nombre en la categoría" |
+| Código de servicio | Lo genera el servidor (`GeneradorCodigoServicio`): prefijo de la categoría + número correlativo (VA001, VA002…). No cambia al modificar el servicio |
+| Descuento | Porcentaje entre 0 y 100. `0` o vacío se guarda como `null` (el servicio no está en oferta) |
+| Lo que incluye | Lista de hasta 10 textos, guardada en la tabla `servicio_incluye` |
+
+**Carga inicial.** Al arrancar, si las tablas están vacías:
+- `CategoriasIniciales` crea las 6 categorías (Consultas, Vacunación, Cirugía, Desparasitación, Exámenes y Otros).
+- `ServiciosIniciales` crea los 31 servicios desde `src/main/resources/data/servicios.json`, con sus códigos originales, y les asigna el descuento de `data/ofertas.json`.
+
+Si ya hay datos, no se modifica nada, así se conservan los cambios del administrador.
 
 ## Variables del `.env`
 El archivo `.env` no se sube a GitHub. Se crea a partir de `.env.example`.
@@ -81,6 +117,7 @@ El archivo `.env` no se sube a GitHub. Se crea a partir de `.env.example`.
 3. `./mvnw spring-boot:run` (desde la carpeta del proyecto, porque ahí se lee el `.env`)
 
 Notas:
+- La primera vez que arranca con la base vacía se cargan el administrador de cada aplicación y el catálogo (ver "Carga inicial").
 - `DB_PASSWORD` y `DB_ROOT_PASSWORD` solo se aplican la primera vez que se crea el contenedor. Para cambiarlas en una base de prueba: `docker compose down -v` (borra los datos).
 - `ADMIN_PASSWORD` solo se usa cuando se crea el administrador; cambiarla después no modifica al administrador ya creado.
 - Si la base viene de una versión anterior (correo único sin aplicación), hay que borrar una vez el índice único antiguo de `email`, porque `ddl-auto=update` no lo elimina:
@@ -130,3 +167,25 @@ Con una base nueva, en Swagger y desde la página de React, como administrador d
 | 28 | Admin desactiva un usuario y ese usuario intenta iniciar sesión | 401 | 401 |
 | 29 | Admin reactiva y luego elimina un usuario desactivado | 200 y 204 | 200 y 204 |
 | 30 | Registro con un RUT ya usado en VETERINARIA | 409 "El RUT ya está registrado" | 409 |
+
+## Pruebas del catálogo (27-nov-2026)
+En Swagger y con `curl`, como administrador de VETERINARIA salvo donde se indica.
+
+| # | Prueba | Esperado | Obtenido |
+|---|--------|----------|----------|
+| 31 | Listar categorías sin token | 200 con las 6 categorías | 200 |
+| 32 | Listar servicios sin token | 200 con los 31 servicios | 200 |
+| 33 | Filtrar servicios `?categoria=vacunacion` | 200 con los 6 de Vacunación; VA001 con descuento 10 | 200 |
+| 34 | Ver servicio inexistente | 404 | 404 |
+| 35 | Filtrar por una categoría inexistente | 404 | 404 |
+| 36 | Crear servicio sin token | 401 | 401 |
+| 37 | Crear servicio en Vacunación | 201 con código VA007 | 201 |
+| 38 | Repetir el nombre del servicio en la misma categoría | 409 | 409 |
+| 39 | Crear servicio con una categoría inexistente | 404 | 404 |
+| 40 | Crear servicio con precio negativo o título vacío | 400 | 400 |
+| 41 | Modificar otro servicio con un nombre ya usado en esa categoría | 409 | 409 |
+| 42 | Modificar el precio del servicio creado | 200; el código sigue siendo VA007 | 200 |
+| 43 | Eliminar una categoría que tiene servicios | 409 "No se puede eliminar una categoría que tiene servicios" | 409 |
+| 44 | Eliminar el servicio creado | 204 | 204 |
+| 45 | Admin KAIJU crea un servicio | 403 | 403 |
+| 46 | Página de React: catálogo público, CRUD del administrador y mensaje de error con el backend apagado | Funciona | Funciona |
