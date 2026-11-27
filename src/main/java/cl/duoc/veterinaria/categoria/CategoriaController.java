@@ -93,8 +93,7 @@ public class CategoriaController {
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido o vencido"),
             @ApiResponse(responseCode = "403", description = "Rol insuficiente"),
             @ApiResponse(responseCode = "404", description = "Categoría inexistente"),
-            @ApiResponse(responseCode = "409", description = "La categoría todavía tiene servicios")}
-        )
+            @ApiResponse(responseCode = "409", description = "La categoría todavía tiene servicios")})
     public void eliminar(@PathVariable Long id) {
         servicio.eliminar(id);
     }
