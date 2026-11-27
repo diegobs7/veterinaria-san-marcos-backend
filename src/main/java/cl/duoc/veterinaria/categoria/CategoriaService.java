@@ -70,7 +70,12 @@ public class CategoriaService {
 
     @Transactional
     public void eliminar(Long id) {
-        categorias.delete(buscar(id));
+        Categoria c = buscar(id);
+        // Se revisa antes de borrar para responder un 409 claro, y no el error genérico de la base de datos
+        if (servicios.existsByCategoriaId(id)) {
+            throw new ApiException(HttpStatus.CONFLICT, "No se puede eliminar una categoría que tiene servicios");
+        }
+        categorias.delete(c);
     }
 
     private Categoria buscar(Long id) {
